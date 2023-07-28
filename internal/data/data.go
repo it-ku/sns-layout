@@ -3,18 +3,29 @@ package data
 import (
 	"context"
 	"github.com/go-kratos/kratos-layout/internal/conf"
+	"github.com/go-kratos/kratos/contrib/registry/etcd/v2"
+	"github.com/go-kratos/kratos/v2/registry"
 	"github.com/go-redis/redis/v8"
 	_ "github.com/go-sql-driver/mysql"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"time"
 
+	etcdClient "go.etcd.io/etcd/client/v3"
+
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/google/wire"
 )
 
 // ProviderSet is data providers.
-var ProviderSet = wire.NewSet(NewData, NewMysqlCmd, NewRedisCmd, NewGreeterRepo)
+var ProviderSet = wire.NewSet(
+	NewData,
+	NewDiscovery,
+	NewRegistrar,
+	NewMysqlCmd,
+	NewRedisCmd,
+	NewGreeterRepo,
+)
 
 // Data .
 type Data struct {
@@ -36,6 +47,29 @@ func NewData(cfg *conf.Bootstrap, db *gorm.DB, redisCli *redis.Client, logger lo
 		db:     db,
 		rdb:    redisCli,
 	}, cleanup, nil
+}
+
+func NewDiscovery(conf *conf.Registry) registry.Discovery {
+	point := conf.Etcd.Address
+	client, err := etcdClient.New(etcdClient.Config{
+		Endpoints: []string{point},
+	})
+	if err != nil {
+		panic(err)
+	}
+	r := etcd.New(client)
+	return r
+}
+
+func NewRegistrar(conf *conf.Registry) registry.Registrar {
+	point := conf.Etcd.Address
+	client, err := etcdClient.New(etcdClient.Config{
+		Endpoints: []string{point},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return etcd.New(client)
 }
 
 func NewMysqlCmd(conf *conf.Bootstrap, logger log.Logger) *gorm.DB {
