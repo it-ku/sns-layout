@@ -13,6 +13,8 @@ import (
 // NewHTTPServer new an HTTP server.
 func NewHTTPServer(c *conf.Server, greeter *service.GreeterService, logger log.Logger) *http.Server {
 	var opts = []http.ServerOption{
+		http.ResponseEncoder(respEncoder), // 用来将用户pb定义里的reply结构体序列化后写入Response Body中
+		http.ErrorEncoder(errorEncoder),   // 用来将业务抛出的error序列化后写入Response Body中
 		http.Middleware(
 			recovery.Recovery(),
 		),
